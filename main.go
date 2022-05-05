@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 )
 
 var counter int = 0
+var waitGroup sync.WaitGroup
 
 func get(w http.ResponseWriter, req *http.Request) {
 	log.Printf("get received: %v", counter)
@@ -21,17 +23,27 @@ func set(w http.ResponseWriter, req *http.Request) {
 	intval, err := strconv.Atoi(val)
 
 	if err != nil {
-		panic("unhandled error")
+		log.Printf("error converting invalid number string to int: %s", err)
+		return
+		//panic("unhandled error")
 	}
 
 	counter = intval
 	log.Printf("set to: %v", counter)
-
 }
 
 func inc(_ http.ResponseWriter, _ *http.Request) {
-	counter = counter + 1
+	waitGroup.Add(1)
+	defer waitGroup.Done()
+
+	go doIncrement()
+
+	waitGroup.Wait()
 	log.Printf("incremented to: %v", counter)
+}
+
+func doIncrement() {
+	counter = counter + 1
 }
 
 func main() {
@@ -41,8 +53,13 @@ func main() {
 
 	portnum := 8000
 	if len(os.Args) > 1 {
-		portnum, _ = strconv.Atoi(os.Args[1])
+		portnum, err := strconv.Atoi(os.Args[1])
+		if err != nil {
+			log.Printf("error converting invalid port argument %s to int: %s", os.Args[1], err)
+			log.Printf("switching back to port %d", portnum)
+		}
 	}
+
 	log.Printf("Going to listen on port %d\n", portnum)
 	log.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(portnum), nil))
 }
