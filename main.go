@@ -17,6 +17,12 @@ var counter uint64 = 0
 
 //below is used to synchronize multiple goroutines called from this app (not helpful for locking http requests, or maybe I missed something)
 //var waitGroup sync.WaitGroup
+
+//As an option to using mutex, will look into using the sync features of goroutines and channels next time.
+//Implementing thread-safe locking because without it, the increment is out of sequence.
+//Tested with two simultaneous ApacheBench sessions - the results were a much faster execution time since it seemed race condition handling slowed
+//things down prior to locking the threads (maybe)
+//Go has a mutex feature for locking threads - not surprising, given its built-in concurrency architecture:
 var mutex sync.Mutex
 
 func get(w http.ResponseWriter, req *http.Request) {
@@ -51,7 +57,7 @@ func inc(_ http.ResponseWriter, req *http.Request) {
 
 	//we need a mutual exclusion mechanism in order to increment contiguously in Go's concurrent world
 	//(out of sequence increment values could be caused by the way the ab utility calls the http server)
-	//either way, ensuring atomic, locking increment was quite straight forward in the Go paradigm:
+	//either way, ensuring atomic, locking increment is quite straight forward in the Go paradigm:
 	mutex.Lock()
 	defer mutex.Unlock()
 
