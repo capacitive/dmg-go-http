@@ -1,5 +1,5 @@
 # Golang and concurrency
-After looking at this code the first time, a few things come to mind:
+After looking at this code the first time, a few things came to mind:
 
 1. If the requirement is to have the counter incremented contiguously in a global space for all callers, then a mutex or stateful goroutines/channels is what's required to make that work ('everyone' sees the same increment, and the counter value is communicated in correct order).  Sychronizing the thread execution is what we want.
 2. If the goal is for every caller/user to have their own counter value per session, then some other approaches are required, which are too large in scope to tackle with the time allotted to this task. Compartmentalizing the thread execution is what we want.
@@ -37,4 +37,7 @@ I also changed some of the error handling to get it on its way to a production e
 I added the User-Agent to the logging to show that Go http library has some useful things in it for developing robust web apps (the http utility library looks interesting as well).
 
 I planned to add in the channels example as a module, but how to do that seemed a bit unclear with my limited knowledge.  And I didn't want to risk development environment issues on your end.  So I added the channels example as a non-Go file for reference.
+
+
+Note: I've split up this work over many small pockets of time over the past few days, at the risk of producing something disjointed.
 
