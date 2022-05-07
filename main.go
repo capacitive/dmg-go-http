@@ -11,11 +11,14 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"channels/channels"
 )
 
+//Golang's platform independent int doesn't work with the atomic AddUint64, LoadUint64
 var counter uint64 = 0
 
-//below is used to synchronize multiple goroutines called from this app (not helpful for locking http requests, or maybe I missed something)
+//below is used to synchronize multiple/repeated goroutines called from this app
+//(not helpful for locking the increment http requests, but useful elsewhere)
 //var waitGroup sync.WaitGroup
 
 //As an option to using mutex, will look into using the sync features of goroutines and channels next time.
@@ -51,7 +54,8 @@ func set(w http.ResponseWriter, req *http.Request) {
 }
 
 func inc(_ http.ResponseWriter, req *http.Request) {
-	//each http request is handled by a unique concurrent goroutine, so the fine-tuned concurrency in Go by design as at play here
+	//each http request is handled by a unique concurrent goroutine, so the fine-tuned concurrency in Go by design as at play here,
+	//and also taking into account that
 	//MSFT's Web API also handles http requests consurrently, but also has a notion of SessionState, with various locking and request timeout rules
 	//nodejs http server "feels" like it's similar to Go's library - will have to review
 
@@ -66,9 +70,10 @@ func inc(_ http.ResponseWriter, req *http.Request) {
 	//counter += 1 //can also work as long as the mutex is used
 	//waitGroup.Done()
 
+	//identify 'who' is making the http call:
 	userAgent := req.Header.Get("User-Agent")
 
-	//using atomic increment AND mutex (various solutions for use cases come to mind)
+	//using atomic increment AND mutex (various solutions for different use cases come to mind)
 	log.Printf("incremented to: %v by caller: %s", atomic.LoadUint64(&counter), userAgent)
 	//log.Printf("incremented to: %v", counter)
 	//waitGroup.Wait()
@@ -78,6 +83,8 @@ func main() {
 	http.HandleFunc("/get", get)
 	http.HandleFunc("/set", set)
 	http.HandleFunc("/increment", inc)
+
+	channels.PrintHello()
 
 	portnum := 8000
 	if len(os.Args) > 1 {
