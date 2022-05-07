@@ -28,7 +28,7 @@ A different style
 -----------------
 On to stateful goroutines and channels!  To quote, "(the) channel-based approach aligns with Go’s ideas of sharing memory by communicating and having each piece of data owned by exactly 1 goroutine". Sounds like a plan. So instead of a mutex I could have used channels (?).However, this approach seems like overkill to me for this specific task - the mutex is much simpler. And with this approach the increments were still out of sequence, unable to prevent the race conditions caused by the multiple http requesters.  With some of the ways I tried this, the numbers were almost perfect, but there were misses and duplicates in the log output.  Most of the time it was no better than simply counter += 1 updating the global counter variable (which always results in incorrect sequence). In light of mutex's ease of use, this was not worth pursuing.  Semaphores?  Now I'm getting carried away with options I don't know well enough in specific Go syntax.
 
-Other minor things I did
+Other minor things I fixed/added
 ------------------------
 I changed the platform-dependent int to Uint in order for the increment to work with the atomic functions.  The conversion of the querystring to int (Atoi) returns an int, and the atomic functions don't appear to support it. Maybe there's more to it that I missed, but time contraints drove the need to find the most immediate fix.  The second reason is that with only an increment function, we don't need an integer type that supports negative numbers.  I also went with 64 bit to keep big numbers (hash puzzles) and word sizes (performance) in mind that support blockchain technologies.
 
@@ -38,6 +38,7 @@ I added the User-Agent to the logging to show that Go http library has some usef
 
 I planned to add in the channels example as a module, but how to do that seemed a bit unclear with my limited knowledge.  And I didn't want to risk development environment issues on your end.  So I added the channels example as a non-Go file for reference.
 
+The set() handler had some extraneous logging, and wasn't sending a response to the caller.
 
 Note: I've split up this work over many small pockets of time over the past few days, at the risk of producing something disjointed.
 

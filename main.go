@@ -29,11 +29,11 @@ var mutex sync.Mutex
 
 func get(w http.ResponseWriter, req *http.Request) {
 	log.Printf("get received: %v", counter)
-	fmt.Fprintf(w, "got: %d\n", counter)
+	fmt.Fprintf(w, "got counter value: %d\n", counter)
 }
 
 func set(w http.ResponseWriter, req *http.Request) {
-	log.Printf("set %v", req)
+	//log.Printf("set %v", req) //??
 	val := req.URL.Query().Get("val")
 	intval, err := strconv.ParseUint(val, 10, 64)
 
@@ -50,24 +50,8 @@ func set(w http.ResponseWriter, req *http.Request) {
 
 	counter = intval
 	log.Printf("set to: %v", counter)
-}
-
-type incrementHandler struct {}
-
-func (h *incrementHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	//waitGroup.Add(1) //again.leaving this in for future reference
-	atomic.AddUint64(&counter, 1) // makes the increment atomic, but is still lockless
-	//counter += 1 //can also work as long as the mutex is used
-	//waitGroup.Done()
-
-	//identify 'who' is making the http call:
-	userAgent := req.Header.Get("User-Agent")
-
-	//using atomic increment AND mutex (various solutions for different use cases come to mind)
-	log.Printf("incremented to: %v by caller: %s", atomic.LoadUint64(&counter), userAgent)
+	//fixed: wasn't sending response to the caller:
+	fmt.Fprintf(w, "set counter to: %d\n", counter)
 }
 
 func inc(_ http.ResponseWriter, req *http.Request) {
@@ -97,8 +81,7 @@ func inc(_ http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	mux := http.NewServeMux()
-	mux.Handle("/get", &incrementHandler{})
+	http.HandleFunc("/get", get)
 	http.HandleFunc("/set", set)
 	http.HandleFunc("/increment", inc)
 
