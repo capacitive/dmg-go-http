@@ -1,0 +1,78 @@
+package main-channels
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"sync/atomic"
+)
+
+var counter uint64 = 0
+
+//the use of channel in this example doesn't work to stop the race conditions.
+var chanl = make(chan bool)
+
+func get(w http.ResponseWriter, req *http.Request) {
+	log.Printf("get received: %v", counter)
+	fmt.Fprintf(w, "got: %d\n", counter)
+}
+
+func set(w http.ResponseWriter, req *http.Request) {
+	log.Printf("set %v", req)
+	val := req.URL.Query().Get("val")
+	intval, err := strconv.ParseUint(val, 10, 64)
+
+	if err != nil {
+		log.Printf("error converting invalid number string to int: %s", err)
+		return
+	}
+
+	counter = intval
+	log.Printf("set to: %v", counter)
+}
+
+func doIncrement() {
+	atomic.AddUint64(&counter, 1)
+	chanl <- true
+}
+
+func inc(_ http.ResponseWriter, req *http.Request) {
+	//we need a mutual exclusion mechanism in order to increment contiguously in Go's concurrent world
+	//(out of sequence increment values could be caused by the way the ab utility calls the http server)
+	//either way, ensuring atomic, locking increment is quite straight forward in the Go paradigm:
+	//mutex.Lock()
+	//defer mutex.Unlock()
+
+	//atomic.AddUint64(&counter, 1) // makes the increment atomic, but is still lockless
+	go doIncrement()
+
+	<- chanl
+
+	//identify 'who' is making the http call:
+	userAgent := req.Header.Get("User-Agent")
+
+	//using atomic increment AND mutex (various solutions for different use cases come to mind)
+	log.Printf("incremented to: %v by caller: %s", atomic.LoadUint64(&counter), userAgent)
+	//log.Printf("incremented to: %v", counter)
+}
+
+func main() {
+	http.HandleFunc("/get", get)
+	http.HandleFunc("/set", set)
+	http.HandleFunc("/increment", inc)
+
+	portnum := 8000
+	if len(os.Args) > 1 {
+		portnum, err := strconv.Atoi(os.Args[1])
+		if err != nil {
+			//samne sort of idea, if the port argument is NaN, can't use it
+			log.Printf("error converting invalid port argument %s to int: %s", os.Args[1], err)
+			log.Printf("continuing with default port %d", portnum)
+		}
+	}
+
+	log.Printf("Going to listen on port %d\n", portnum)
+	log.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(portnum), nil))
+}

@@ -11,14 +11,13 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"channels/channels"
 )
 
 //Golang's platform independent int doesn't work with the atomic AddUint64, LoadUint64
 var counter uint64 = 0
 
 //below is used to synchronize multiple/repeated goroutines called from this app
-//(not helpful for locking the increment http requests, but useful elsewhere)
+//(not helpful for locking the http increment requests, but useful elsewhere)
 //var waitGroup sync.WaitGroup
 
 //As an option to using mutex, will look into using the sync features of goroutines and channels next time.
@@ -53,6 +52,24 @@ func set(w http.ResponseWriter, req *http.Request) {
 	log.Printf("set to: %v", counter)
 }
 
+type incrementHandler struct {}
+
+func (h *incrementHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	//waitGroup.Add(1) //again.leaving this in for future reference
+	atomic.AddUint64(&counter, 1) // makes the increment atomic, but is still lockless
+	//counter += 1 //can also work as long as the mutex is used
+	//waitGroup.Done()
+
+	//identify 'who' is making the http call:
+	userAgent := req.Header.Get("User-Agent")
+
+	//using atomic increment AND mutex (various solutions for different use cases come to mind)
+	log.Printf("incremented to: %v by caller: %s", atomic.LoadUint64(&counter), userAgent)
+}
+
 func inc(_ http.ResponseWriter, req *http.Request) {
 	//each http request is handled by a unique concurrent goroutine, so the fine-tuned concurrency in Go by design as at play here,
 	//and also taking into account that
@@ -65,9 +82,9 @@ func inc(_ http.ResponseWriter, req *http.Request) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	//waitGroup.Add(1) //again.leaving this in for future reference (I'm not yet sure if simply preceding a code block is sufficient)
+	//waitGroup.Add(1) //again.leaving this in for future reference
 	atomic.AddUint64(&counter, 1) // makes the increment atomic, but is still lockless
-	//counter += 1 //can also work as long as the mutex is used
+	//counter += 1 //can also work as long as the mutex is used (don't need LoadUint64)
 	//waitGroup.Done()
 
 	//identify 'who' is making the http call:
@@ -80,11 +97,10 @@ func inc(_ http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/get", get)
+	mux := http.NewServeMux()
+	mux.Handle("/get", &incrementHandler{})
 	http.HandleFunc("/set", set)
 	http.HandleFunc("/increment", inc)
-
-	channels.PrintHello()
 
 	portnum := 8000
 	if len(os.Args) > 1 {
