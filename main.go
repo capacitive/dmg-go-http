@@ -57,7 +57,7 @@ func set(w http.ResponseWriter, req *http.Request) {
 func inc(_ http.ResponseWriter, req *http.Request) {
 	//each http request is handled by a unique concurrent goroutine, so the fine-tuned concurrency in Go by design as at play here,
 	//and also taking into account that
-	//MSFT's Web API also handles http requests consurrently, but also has a notion of SessionState, with various locking and request timeout rules
+	//MSFT's Web API also handles http requests concurrently, but also has a notion of SessionState, with various locking and request timeout rules
 	//nodejs http server "feels" like it's similar to Go's library - will have to review
 
 	//we need a mutual exclusion mechanism in order to increment contiguously in Go's concurrent world
@@ -89,7 +89,7 @@ func main() {
 	if len(os.Args) > 1 {
 		portnum, err := strconv.Atoi(os.Args[1])
 		if err != nil {
-			//samne sort of idea, if the port argument is NaN, can't use it
+			//same sort of idea, if the port argument is NaN, can't use it
 			log.Printf("error converting invalid port argument %s to int: %s", os.Args[1], err)
 			log.Printf("continuing with default port %d", portnum)
 		}
