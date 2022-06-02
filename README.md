@@ -20,6 +20,8 @@ defer mutex.Unlock()
 
 _then_ you increment the counter, and the concurrent processes making http requests have to wait for the mutex to unlock the increment execution.
 
+The set function got a slightly different treatment, even after setting up the mutex for this as well.  Since we're setting the value of a variable directly, can't use the atomic increment (realizing how important the atomic library is in conjunction with mutex).  I can haz atomic.SwapUint64(&counter, intval) instead.  This brings up an important point about requirements and design goals: Normally, I don't think a blatant reset has any part in a blockchain system, for example - increment should carry with it finality, and should store the latest incremented value in a blockchain transaction whenever possible.  All increments should be stored in a memory cache (to be later pushed to a persistent store) prior to the next increment.  On http server shutdown, however unexpected, the last increment that made it to the persistent store will be preserved, and can be made into a blockchain transaction by a utility microservice in the same ecosystem as the persistent storage.  The idea of blatant resets/deletes brings on an entire argument about consensus on blockchains, and centralized control over transactions.
+
 Why did I use atomic increment for the counter?
 -----------------------------------------------
 To demonstrate another approach to the problem of managing/synchronizing state.  This is accompanied by the WaitGroup mechanism, and may be useful for certain use cases.  The usual path is using stateful goroutines and channels, which I've also demonstrated. Also, they didn't fix the race condition problem, and I didn't have time to fully investigate.
@@ -41,4 +43,28 @@ I planned to add in the channels example as a module, but how to do that seemed 
 The set() handler had some extraneous logging, and wasn't sending a response to the caller.
 
 Note: I've split up this work over many small pockets of time over the past few days, at the risk of producing something disjointed.
+
+
+Testing (Apache Bench)
+----------------------
+Stress test server with a high amount of load
+
+```$ ab -n 20000 -c 1000 "127.0.0.1:8000/increment"```
+
+Perform a single get counter request
+
+```$ curl "localhost:8000/get"```
+
+Perform a single increment counter request
+
+```$ curl "localhost:8000/increment"```
+
+Perform a single set counter request, to set the value to “2”
+
+```$ curl "localhost:8000/set?val=2"```
+
+Perform a single increment counter request
+
+```$ curl "localhost:8000/increment"```
+
 

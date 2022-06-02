@@ -48,7 +48,14 @@ func set(w http.ResponseWriter, req *http.Request) {
 		//panic("unhandled error")
 	}
 
-	counter = intval
+	//respect mutex for setting variable as well:
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	//set variable using atomic to maintain consistent, atomic operations for all participants of this set/increment API:
+	atomic.SwapUint64(&counter, intval)
+	//counter = intval
+
 	log.Printf("set to: %v", counter)
 	//fixed: wasn't sending response to the caller:
 	fmt.Fprintf(w, "set counter to: %d\n", counter)
